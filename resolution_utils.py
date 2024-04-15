@@ -86,3 +86,13 @@ def find_bast_scale(x, y, current_scale):
             return bast_scale/100.0
         bast_scale += -1
     return 0
+
+def resize_to(o_w,o_h,t_w,t_h):
+    ws = t_w/o_w
+    hs = t_h/o_h
+    if ws * o_h > t_h:
+        s = hs
+    else:
+        s = ws
+    return (int(o_w * s),int(o_h * s))
+    

@@ -390,12 +390,79 @@ class ImageResolutionAdaptiveWithX:
         return (numpy_image.unsqueeze(0),)
 
 
+class ImageCropWithMask:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "width": ("INT", {"default": 512, "min": 0, "max": 8096, "step": 1}),
+                "height": ("INT", {"default": 512, "min": 0, "max": 8096, "step": 1}),
+                "padding": ("INT", {"default": 0, "min": 0, "max": 1024, "step": 1}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image", )
+    FUNCTION = "adaptive"
+
+    CATEGORY = "image"
+
+    def adaptive(self, image,mask,width,height, mode="zoom",padding=0):
+        # 将pythorch的tensor转换为opencv需要的图像格式
+        mask_cv2 = mask.cpu().squeeze(0).numpy()
+        mask_cv2 = (mask_cv2 * 255).astype(np.uint8)
+        _, mask_cv2 = cv2.threshold(mask_cv2, 1, 255, cv2.THRESH_BINARY)
+        
+        # 寻找轮廓
+        contours, _ = cv2.findContours(mask_cv2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours or len(contours) == 0:
+            return (image)
+        image_cv2 = image.cpu().squeeze(0).numpy()
+        image_cv2 = (image_cv2 * 255).astype(np.uint8)
+        mask_bool = mask_cv2 > 0
+        image_cv2[~mask_bool]=0
+
+        all_contours = np.vstack(contours)
+        all_contour_x, all_contour_y, all_contour_w, all_contour_h = cv2.boundingRect(all_contours)
+        box_left = all_contour_x
+        box_top = all_contour_y
+        box_right = all_contour_x + all_contour_w
+        box_bottom = all_contour_y + all_contour_h
+        box_left = max(0, box_left - padding)
+        box_top = max(0, box_top - padding)
+        box_right = min(image_cv2.shape[0], box_right + padding)
+        box_bottom = min(image_cv2.shape[1], box_bottom + padding)
+        
+        image_cv2 = image_cv2[box_top:box_bottom,box_left:box_right]
+        
+        
+        scale_w,scale_h = resize_to(image_cv2.shape[1],image_cv2.shape[0],width,height)
+        image_cv2 = cv2.resize(image_cv2, (scale_w,scale_h))
+        offset_w = width - image_cv2.shape[1]
+        offset_h = height - image_cv2.shape[0]
+        offset_top = offset_h//2
+        offset_bottom = offset_h - offset_top
+        offset_left = offset_w//2
+        offset_right = offset_w - offset_left
+        image_cv2 = cv2.copyMakeBorder(image_cv2, offset_top, offset_bottom, offset_left, offset_right, cv2.BORDER_CONSTANT,0)
+        image_cv2 = np.array(image_cv2).astype(np.float32) / 255.0
+        image_cv2 = torch.from_numpy(image_cv2)
+        return (image_cv2.unsqueeze(0),)
+
+
+
 NODE_CLASS_MAPPINGS = {
     "Mask Change Device": MaskChangeDevice,
     "Image Change Device": ImageChangeDevice,
     "Split Masks": SplitMasks,
     "Mask Selection Of Masks": MaskselectionOfMasks,
     "Image Adaptive Crop M&R": ImageAdaptiveCrop,
+    "Image Adaptive Crop With Mask": ImageCropWithMask,
     "Image Resolution Limit With 8K": ImageResolutionLimitWith8K,
     "Image Resolution Adaptive With X": ImageResolutionAdaptiveWithX,
 }
@@ -406,6 +473,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Split Masks": "Split Masks",
     "Mask Selection Of Masks": "Mask Selection Of Masks",
     "Image Adaptive Crop M&R": "Image Adaptive Crop MASK&Resolution",
+    "Image Adaptive Crop With Mask": "Image Adaptive Crop With Mask",
     "Image Resolution Limit With 8K": "Image Resolution Limit With 8K",
     "Image Resolution Adaptive With X": "Image Resolution Adaptive With X",
 }
