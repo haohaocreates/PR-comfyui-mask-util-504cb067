@@ -32,7 +32,7 @@ class ImageChangeDevice:
         else:
             seleted_device = torch.device(device)
         if image.device != seleted_device:
-            image.to(seleted_device) 
+            image = image.to(seleted_device) 
         return (image,)
 
 
@@ -62,7 +62,7 @@ class MaskChangeDevice:
         else:
             seleted_device = torch.device(device)
         if mask.device != seleted_device:
-            mask.to(seleted_device) 
+            mask = mask.to(seleted_device) 
         return (mask,)
 
 class SplitMasks:
