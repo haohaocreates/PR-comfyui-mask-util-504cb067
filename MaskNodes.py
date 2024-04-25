@@ -435,8 +435,8 @@ class ImageCropWithMask:
         box_bottom = all_contour_y + all_contour_h
         box_left = max(0, box_left - padding)
         box_top = max(0, box_top - padding)
-        box_right = min(image_cv2.shape[0], box_right + padding)
-        box_bottom = min(image_cv2.shape[1], box_bottom + padding)
+        box_right = min(image_cv2.shape[1], box_right + padding)
+        box_bottom = min(image_cv2.shape[0], box_bottom + padding)
         
         image_cv2 = image_cv2[box_top:box_bottom,box_left:box_right]
         
